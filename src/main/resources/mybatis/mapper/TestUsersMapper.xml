@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shaphar.mapper.TestUsersMapper">
+  <resultMap id="BaseResultMap" type="com.shaphar.domain.TestUsers">
+    <id column="USER_ID" jdbcType="DECIMAL" property="userId" />
+    <result column="PARTY_ID" jdbcType="DECIMAL" property="partyId" />
+    <result column="USER_NAME" jdbcType="VARCHAR" property="userName" />
+    <result column="LOGIN_NAME" jdbcType="VARCHAR" property="loginName" />
+    <result column="LOGIN_NICKNAME" jdbcType="VARCHAR" property="loginNickname" />
+    <result column="LOGIN_MD5_PASSWORD" jdbcType="VARCHAR" property="loginMd5Password" />
+    <result column="LOGIN_INITPWD" jdbcType="VARCHAR" property="loginInitpwd" />
+    <result column="ADMIN" jdbcType="VARCHAR" property="admin" />
+    <result column="IS_GROUP" jdbcType="VARCHAR" property="isGroup" />
+    <result column="USER_STATUS" jdbcType="VARCHAR" property="userStatus" />
+    <result column="EXPIRE_DATE" jdbcType="DATE" property="expireDate" />
+    <result column="LOGIN_TIMES" jdbcType="INTEGER" property="loginTimes" />
+    <result column="LAST_PASSWORD_CHANGE_DATE" jdbcType="DATE" property="lastPasswordChangeDate" />
+    <result column="PASSWORD_LOG" jdbcType="VARCHAR" property="passwordLog" />
+    <result column="USER_TYPE" jdbcType="VARCHAR" property="userType" />
+  </resultMap>
+
+  <select id="listUser"  resultMap="BaseResultMap">
+    select
+    *
+    from TEST_USERS
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.math.BigDecimal" resultMap="BaseResultMap">
+    select 
+    *
+    from TEST_USERS
+    where USER_ID = #{userId,jdbcType=DECIMAL}
+  </select>
+  <insert id="addTestUser" parameterType="com.shaphar.domain.TestUsers">
+     insert into TEST_USERS (USER_ID,PARTY_ID,USER_NAME,LOGIN_NAME,LOGIN_NICKNAME,LOGIN_MD5_PASSWORD,LOGIN_INITPWD,ADMIN,IS_GROUP,USER_STATUS,EXPIRE_DATE,LOGIN_TIMES,LAST_PASSWORD_CHANGE_DATE,PASSWORD_LOG,USER_TYPE)
+     VALUES  (#{userId},#{partyId},#{userName},#{loginName},#{loginNickname},#{loginMd5Password},#{loginInitpwd},#{admin},#{isGroup},#{userStatus},#{expireDate},#{loginTimes},#{lastPasswordChangeDate},#{passwordLog},#{userType})
+  </insert>
+</mapper>
