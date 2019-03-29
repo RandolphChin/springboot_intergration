@@ -18,6 +18,8 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisNode;
+import org.springframework.data.redis.connection.RedisSentinelConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration;
@@ -51,8 +53,10 @@ public class RedisConfig extends CachingConfigurerSupport {
     private int poolMaxIdle;
     @Value("${redis.poolMaxWait}")
     private int poolMaxWait;//秒
-
-
+    @Value("${redis.sentinel.nodes}")
+    private String redisNodes;
+    @Value("${redis.sentinel.master}")
+    private String master;
 
     /**
      * Custom caching key generation policy. The default generation strategy is unknown (scrambled content) custom configuration injection through Spring's dependency injection feature and this class is a configuration class that can customize configuration to a greater degree**@return
@@ -124,7 +128,11 @@ public class RedisConfig extends CachingConfigurerSupport {
       //  configuration.setPassword(RedisPassword.of(password));
         //Sentinel model//RedisSentinelConfiguration configuration1 = new RedisSentinelConfiguration();
         //Cluster model//RedisClusterConfiguration configuration2 = new RedisClusterConfiguration();
-        LettuceConnectionFactory factory = new LettuceConnectionFactory(configuration, getPoolConfig());
+        // 单机版
+       // LettuceConnectionFactory factory = new LettuceConnectionFactory(configuration, getPoolConfig());
+        // 哨兵版 sentinel
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisSentinelConfiguration(), getPoolConfig());
+
         //factory.setShareNativeConnection(false);//If multiple thread operations are allowed to share the same cache connection, the default is true, and each operation opens a new connection when false
         return factory;
     }
@@ -144,5 +152,23 @@ public class RedisConfig extends CachingConfigurerSupport {
                 .build();
         return pool;
     }
+
+    /**
+     54      * redis哨兵配置
+     55      * @return
+     56      */
+      @Bean
+      public RedisSentinelConfiguration redisSentinelConfiguration(){
+                 RedisSentinelConfiguration configuration = new RedisSentinelConfiguration();
+                 String[] host = redisNodes.split(",");
+                 for(String redisHost : host){
+                         String[] item = redisHost.split(":");
+                         String ip = item[0];
+                         String port = item[1];
+                         configuration.addSentinel(new RedisNode(ip, Integer.parseInt(port)));
+                     }
+                 configuration.setMaster(master);
+                 return configuration;
+             }
 }
 

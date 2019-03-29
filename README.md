@@ -57,3 +57,13 @@ swagger接口中测试 POST 接口数据
 #### 温馨提示
 >测试 ehcache memcached 时需要 pom.xml 中注释掉 spring-boot-devtools，
 否则会报ClassCastException
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>
+####更新
+redis增加主从复制 哨兵 sentinel
+>/home/redis_test/redis/bin/redis-server /home/redis_test/redis/etc/redis_4444.conf
+>/home/redis_test/redis/bin/redis-server /home/redis_test/redis/etc/redis_5555.conf
+> 启动 sentinel
+>/home/redis_test/redis/bin/redis-sentinel /home/redis_test/redis/etc/sentinel_20086.conf
+>/home/redis_test/redis/bin/redis-sentinel /home/redis_test/redis/etc/sentinel_20087.conf
+>/home/redis_test/redis/bin/redis-sentinel /home/redis_test/redis/etc/sentinel_20088.conf
