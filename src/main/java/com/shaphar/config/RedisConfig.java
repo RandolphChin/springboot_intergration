@@ -3,6 +3,14 @@ package com.shaphar.config;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaphar.config.db.redis_slave.JedisSentinelSlaveConnectionFactory;
+import io.lettuce.core.ReadFrom;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.async.RedisAsyncCommands;
+import io.lettuce.core.codec.Utf8StringCodec;
+import io.lettuce.core.masterslave.MasterSlave;
+import io.lettuce.core.masterslave.StatefulRedisMasterSlaveConnection;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,13 +22,13 @@ import org.springframework.cache.interceptor.KeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.RedisNode;
-import org.springframework.data.redis.connection.RedisSentinelConfiguration;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.*;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -34,7 +42,9 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 @Configuration
@@ -57,6 +67,10 @@ public class RedisConfig extends CachingConfigurerSupport {
     private String redisNodes;
     @Value("${redis.sentinel.master}")
     private String master;
+    @Value("${redis.cluster.nodes}")
+    private String clusterNodes;
+    @Value("${redis.cluster.timeout}")
+    private String clusterTimeout;
 
     /**
      * Custom caching key generation policy. The default generation strategy is unknown (scrambled content) custom configuration injection through Spring's dependency injection feature and this class is a configuration class that can customize configuration to a greater degree**@return
@@ -98,7 +112,7 @@ public class RedisConfig extends CachingConfigurerSupport {
     /**
      * Get caching operation assistant object**@return
      */
-    @Bean
+    @Bean // (name="redisTemplateSlave")
     public RedisTemplate<String, String> redisTemplate() {
         //Create Redis cache operation assistant RedisTemplate object
         RedisTemplate<String, String> template = new RedisTemplate<>();
@@ -114,11 +128,30 @@ public class RedisConfig extends CachingConfigurerSupport {
         template.afterPropertiesSet();
         return template;
     }
+/*
+
+    @Bean(name="redisTemplate")
+    public RedisTemplate<String, String> redisTemplateMaster() {
+        //Create Redis cache operation assistant RedisTemplate object
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(getMasterConnectionFactory());
+        //The following code replaces RedisTemplate's Value serializer with Jackson 2 Json RedisSerializer from JdkSerialization RedisSerializer //This serialization method is clear, easy to read, store less byte and fast, so it is recommended to replace it.
+        Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+        ObjectMapper om = new ObjectMapper();
+        om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        jackson2JsonRedisSerializer.setObjectMapper(om);
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setKeySerializer(new StringRedisSerializer());//RedisTemplateThe object needs to specify the Key serialization mode. If the StringRedisTemplate object is declared, it does not need it.//template.setEnableTransactionSupport(true);//Enable transaction
+        template.afterPropertiesSet();
+        return template;
+    }
+*/
 
     /**
      * Get cache connections**@return
      */
-    @Bean
+    @Bean(name = "redisConnectionFactory")
     public RedisConnectionFactory getConnectionFactory() {
         //standalone mode
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
@@ -130,10 +163,15 @@ public class RedisConfig extends CachingConfigurerSupport {
         //Cluster model//RedisClusterConfiguration configuration2 = new RedisClusterConfiguration();
         // 单机版
        // LettuceConnectionFactory factory = new LettuceConnectionFactory(configuration, getPoolConfig());
-        // 哨兵版 sentinel
+        // 哨兵版 sentinel 一主多从，读写都从主
         LettuceConnectionFactory factory = new LettuceConnectionFactory(redisSentinelConfiguration(), getPoolConfig());
-
+        // cluster版
+    //    LettuceConnectionFactory factory = new LettuceConnectionFactory(redisClusterConfiguration(), getPoolConfig());
         //factory.setShareNativeConnection(false);//If multiple thread operations are allowed to share the same cache connection, the default is true, and each operation opens a new connection when false
+        //哨兵版 sentinel 一主多从，读写分离 begin
+      //  JedisClientConfiguration clientConfiguration = JedisClientConfiguration.builder().clientName("MyRedisClient").build();
+     //   JedisConnectionFactory factory = new JedisSentinelSlaveConnectionFactory(redisSentinelConfiguration(), clientConfiguration);
+        //哨兵版 sentinel 一主多从，读写分离 end
         return factory;
     }
 
@@ -169,6 +207,38 @@ public class RedisConfig extends CachingConfigurerSupport {
                      }
                  configuration.setMaster(master);
                  return configuration;
-             }
+      }
+
+       public RedisClusterConfiguration redisClusterConfiguration(){
+           Map<String, Object> source = new HashMap<String, Object>();
+
+           source.put("spring.redis.cluster.nodes", clusterNodes);
+           source.put("spring.redis.cluster.timeout", clusterTimeout);
+           return new RedisClusterConfiguration(new MapPropertySource("RedisClusterConfiguration", source));
+       }
+/*
+
+    @Bean(name = "redisMasterConnectionFactory")
+    public RedisConnectionFactory getMasterConnectionFactory() {
+        //standalone mode
+        RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
+        configuration.setHostName(host);
+        configuration.setPort(port);
+        //  configuration.setDatabase(database);
+        //  configuration.setPassword(RedisPassword.of(password));
+        //Sentinel model//RedisSentinelConfiguration configuration1 = new RedisSentinelConfiguration();
+        //Cluster model//RedisClusterConfiguration configuration2 = new RedisClusterConfiguration();
+        // 单机版
+        // LettuceConnectionFactory factory = new LettuceConnectionFactory(configuration, getPoolConfig());
+        // 哨兵版 sentinel 一主多从，读写都从主
+           LettuceConnectionFactory factory = new LettuceConnectionFactory(redisSentinelConfiguration(), getPoolConfig());
+        // cluster版
+        //    LettuceConnectionFactory factory = new LettuceConnectionFactory(redisClusterConfiguration(), getPoolConfig());
+        //factory.setShareNativeConnection(false);//If multiple thread operations are allowed to share the same cache connection, the default is true, and each operation opens a new connection when false
+
+        return factory;
+    }
+*/
+
 }
 

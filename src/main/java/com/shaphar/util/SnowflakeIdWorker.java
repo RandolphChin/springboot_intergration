@@ -74,7 +74,9 @@ public class SnowflakeIdWorker {
     }
 
     /**
-     * 生成唯一ID
+     * 生成唯一ID   需要把  SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0); 独立出来否则高并发下 id 不唯一
+     *  错误示例：  for(...){  SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0);    idWorker.nextId() }
+     *  正确示例：  SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0);   for(...){     idWorker.nextId() }
      * @param workerId
      * @param datacenterId
      * @return

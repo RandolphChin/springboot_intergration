@@ -74,6 +74,8 @@ public class GreetingController {
     @Autowired
     ElasticSearchService elasticSearchService;
 
+    SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0);
+
     /**
      *   restful
      * @return
@@ -150,7 +152,7 @@ public class GreetingController {
         try {
             BeanUtils.copyProperties(userVO, testUsers);
             // snowflaker 生成唯一ID
-            Long systemId = SnowflakeIdWorker.getSystemId(0, 0);
+            Long systemId = idWorker.nextId();
             testUsers.setUserId(new BigDecimal(systemId));
             testUserService.addPfUsers(testUsers);
         }catch (Exception e){
@@ -278,7 +280,7 @@ public class GreetingController {
         try {
             BeanUtils.copyProperties(userVO, testUsersMongo);
             // snowflaker 生成唯一ID
-            Long systemId = SnowflakeIdWorker.getSystemId(0, 0);
+            Long systemId = idWorker.nextId();
             testUsersMongo.setUserId(new BigDecimal(systemId));
             mongoTestUserService.saveTestUsersMongo(testUsersMongo);
         }catch (Exception e){
@@ -318,7 +320,7 @@ public class GreetingController {
         try {
             BeanUtils.copyProperties(userVO, testUsers);
             // snowflaker 生成唯一ID
-            Long systemId = SnowflakeIdWorker.getSystemId(0, 0);
+            Long systemId = idWorker.nextId();
             testUsers.setUserId(new BigDecimal(systemId));
 
          //   testUserService.addPfUsers(testUsers);
@@ -384,20 +386,25 @@ public class GreetingController {
     })
     @ResponseBody
     @RequestMapping(value = "/api/sit/elasticsearch/user/{fieldName}/{fieldVal}",method = RequestMethod.GET)
-    public ResultResponseInfo selectTestUsersByIdES(@PathVariable("fieldName") String fieldName,@PathVariable("fieldVal") String fieldVal) {
+    public ResultResponseInfo selectTestUsersByIdES(@PathVariable("fieldName") String fieldName,@PathVariable("fieldVal") String fieldVal,
+                                                    @RequestParam(value = "page", defaultValue = "0")Integer page,@RequestParam(value = "size", defaultValue = "4")Integer size) {
         DynamicDataSource.setDatasource(DataBaseSource.ERP_SIT.getDbName());
         ResultResponseInfo result = ResultResponseInfo.build();
         Es es = new Es("search_index","search_index");
-        SearchHits searchHits = elasticSearchService.selectfromEsByField(es,fieldName,fieldVal);
+        SearchHits searchHits = elasticSearchService.selectfromEsByField(es,fieldName,fieldVal,page,size);
         List<String> list = new ArrayList<String>();
-        long totalHits = searchHits.getTotalHits();
+        List<Map<Object,Object>> listMap = new ArrayList<Map<Object,Object>>();
+        long totalHits = searchHits.getTotalHits(); // 得到的totalHits 是所有符合条件的文档总个数，跟是否分页没有关系
         for(SearchHit sh : searchHits){
             // Map<String,Object> map= sh.getSourceAsMap();
             String str =sh.getSourceAsString();
+            Map m =sh.getSourceAsMap();
             list.add(str);
+            listMap.add(m);
         }
-        result.setData(list);
-        result.setCount(totalHits);
+        result.setData(listMap);
+        // result.setCount(totalHits);
+        result.setCount(Long.valueOf(list.size()));
         return result;
     }
 
@@ -417,7 +424,7 @@ public class GreetingController {
         try {
             BeanUtils.copyProperties(userVO, testUsers);
             // snowflaker 生成唯一ID
-            Long systemId = SnowflakeIdWorker.getSystemId(0, 0);
+            Long systemId =idWorker.nextId();
             testUsers.setUserId(new BigDecimal(systemId));
             mqSender.sendTestUserMessage(testUsers);
             String jsonStr = JSON.toJSONString(testUsers, SerializerFeature.WriteDateUseDateFormat);
