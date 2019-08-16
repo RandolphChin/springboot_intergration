@@ -1,6 +1,8 @@
 package com.shaphar.config;
 
+import com.rabbitmq.client.ConnectionFactory;
 import org.springframework.amqp.core.*;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -85,5 +87,6 @@ public class MQConfig {
 		return BindingBuilder.bind(headerQueue1()).to(headersExchage()).whereAll(map).match();
 	}
 	
-	
+
+
 }

@@ -81,8 +81,8 @@ public class SnowflakeIdWorker {
      * @param datacenterId
      * @return
      */
-    public static long getSystemId(long workerId, long datacenterId){
-        SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0);
+    static SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0);
+    public static long getSystemId(){
         return idWorker.nextId();
     }
 
